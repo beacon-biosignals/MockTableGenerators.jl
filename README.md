@@ -1,5 +1,7 @@
 # MockTableGenerators.jl
 
+[![CI](https://github.com/beacon-biosignals/MockTableGenerators.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/beacon-biosignals/MockTableGenerators.jl/actions/workflows/CI.yml)
+
 The MockTableGenerators.jl package provides an interface for composing the the generation of multiple dependent [Tables.jl](https://github.com/JuliaData/Tables.jl) to produce realistic mock datasets.
 
 Users should define subtypes of `TableGenerator` and extend the `table_key`, `num_rows`, and `emit!` functions. Special row generators may also need to make use of `visit!` for introducing state or `dependency_key` for multiple `TableGenerator` types which creating rows for the same table. Instances of `TableGenerator`s can be constructed into a DAG which defines dependences between generators.
