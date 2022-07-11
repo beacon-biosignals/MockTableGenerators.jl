@@ -1,6 +1,6 @@
 # MockTableGenerators.jl
 
-[![CI](https://github.com/beacon-biosignals/MockTableGenerators.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/beacon-biosignals/MockTableGenerators.jl/actions/workflows/CI.yml)
+[![CI](https://github.com/beacon-biosignals/MockTableGenerators.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/beacon-biosignals/MockTableGenerators.jl/actions/workflows/ci.yml)
 
 The MockTableGenerators.jl package provides an interface for composing the the generation of multiple dependent [Tables.jl](https://github.com/JuliaData/Tables.jl) to produce realistic mock datasets.
 
