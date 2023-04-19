@@ -5,12 +5,12 @@ abstract type TableGenerator end
 # relying on changing this over time will fail.
 
 """
-    visit!(g::TableGenerator, deps)
+    visit!(rng, g::TableGenerator, deps)
 
 Function allows generates to update state each time the node is visited the the DAG. When
 a `TableGenerator` creates a batch of rows this function is only called once.
 """
-visit!(g::TableGenerator, deps) = nothing
+visit!(rng, g::TableGenerator, deps) = nothing
 
 """
     table_key(::TableGenerator) -> Symbol
@@ -31,8 +31,8 @@ See also: [`emit!`](@ref), [`table_key`](@ref)
 dependency_key(g::TableGenerator) = table_key(g)
 
 """
-    num_rows(g::TableGenerator, state=nothing) -> Int
-    num_rows(g::TableGenerator) -> Int
+    num_rows(rng::AbstractRNG, g::TableGenerator, state=nothing) -> Int
+    num_rows(rng::AbstractRNG, g::TableGenerator) -> Int
 
 Returns the number of rows that should be produced for this DAG node visit. The number of
 rows can vary between DAG visits.
@@ -40,8 +40,8 @@ rows can vary between DAG visits.
 function num_rows end
 
 """
-    emit(g::TableGenerator, deps::Dict{Symbol,<:Any}, state=nothing)
-    emit(g::TableGenerator, deps::Dict{Symbol,<:Any})
+    emit(rng::AbstractRNG, g::TableGenerator, deps::Dict{Symbol,<:Any}, state=nothing)
+    emit(rng::AbstractRNG, g::TableGenerator, deps::Dict{Symbol,<:Any})
 
 Produces a single row from the table generator. Dependent generators will be passed the
 contents of the rows they depend on via `deps` and indexed by the result of
@@ -52,12 +52,14 @@ generator.
 function emit! end
 
 # TODO: Probably should be dropped but are nice as they reduce churn while iterating on design
-num_rows(g::TableGenerator, state::Nothing) = num_rows(g)
-emit!(g::TableGenerator, deps, state::Nothing) = emit!(g, deps)
+num_rows(rng, g::TableGenerator, state::Nothing) = num_rows(rng, g)
+emit!(rng, g::TableGenerator, deps, state::Nothing) = emit!(rng, g, deps)
 
-function generate(dag; size::Integer=10)
+generate(dag; kwargs...) = generate(Random.GLOBAL_RNG, dag; kwargs...)
+
+function generate(rng::AbstractRNG, dag; size::Integer=10)
     channel = Channel(size) do ch
-        return generate(dag) do table, row
+        return generate(rng, dag) do table, row
             return put!(ch, table => row)
         end
     end
@@ -65,25 +67,25 @@ function generate(dag; size::Integer=10)
     return channel
 end
 
-function generate(callback, dag)
-    return _generate!(callback, dag, Dict())
+function generate(callback, rng::AbstractRNG, dag)
+    return _generate!(rng, callback, dag, Dict())
 end
 
-function _generate!(callback, dag::AbstractVector, deps)
+function _generate!(rng::AbstractRNG, callback, dag::AbstractVector, deps)
     for node in dag
-        _generate!(callback, node, deps)
+        _generate!(rng, callback, node, deps)
     end
     return nothing
 end
 
-function _generate!(callback, dag::Pair{<:TableGenerator,<:Any}, deps)
+function _generate!(rng::AbstractRNG, callback, dag::Pair{<:TableGenerator,<:Any}, deps)
     gen, nodes = dag
 
-    state = visit!(gen, deps)
+    state = visit!(rng, gen, deps)
     t_key, d_key = table_key(gen), dependency_key(gen)
-    n = num_rows(gen, state)
+    n = num_rows(rng, gen, state)
     for _ in 1:n
-        row = emit!(gen, deps, state)
+        row = emit!(rng, gen, deps, state)
         callback(t_key, row)
 
         # Dependents need access to the data in `row` but we need to avoid mutating the
@@ -92,18 +94,18 @@ function _generate!(callback, dag::Pair{<:TableGenerator,<:Any}, deps)
         new_deps[d_key] = row
 
         for node in nodes
-            _generate!(callback, node, new_deps)
+            _generate!(rng, callback, node, new_deps)
         end
     end
     return nothing
 end
 
-function _generate!(callback, gen::TableGenerator, deps)
-    state = visit!(gen, deps)
+function _generate!(rng::AbstractRNG, callback, gen::TableGenerator, deps)
+    state = visit!(rng, gen, deps)
     t_key = table_key(gen)
-    n = num_rows(gen, state)
+    n = num_rows(rng, gen, state)
     for _ in 1:n
-        row = emit!(gen, deps, state)
+        row = emit!(rng, gen, deps, state)
         callback(t_key, row)
     end
     return nothing
