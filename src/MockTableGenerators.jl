@@ -1,7 +1,7 @@
 module MockTableGenerators
 
 using Dates: Period
-using Random
+using Random: AbstractRNG
 
 export TableGenerator
 
