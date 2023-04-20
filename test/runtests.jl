@@ -28,6 +28,8 @@ using UUIDs: uuid4
             dag = DemoGenerator(2) => [DemoGenerator(1)]
             results = collect(MockTableGenerators.generate(StableRNG(1), dag))
             @test results == collect(MockTableGenerators.generate(StableRNG(1), dag))
+            # test abstractvector method for _generate
+            @test results == collect(MockTableGenerators.generate(StableRNG(1), [dag]))
             @test results != collect(MockTableGenerators.generate(dag))
 
             table_names = first.(results)
