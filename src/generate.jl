@@ -68,17 +68,17 @@ function generate(rng::AbstractRNG, dag; size::Integer=10)
 end
 
 function generate(callback, rng::AbstractRNG, dag)
-    return _generate!(rng, callback, dag, Dict())
+    return _generate!(callback, rng, dag, Dict())
 end
 
-function _generate!(rng::AbstractRNG, callback, dag::AbstractVector, deps)
+function _generate!(callback, rng::AbstractRNG, dag::AbstractVector, deps)
     for node in dag
-        _generate!(rng, callback, node, deps)
+        _generate!(callback, rng, node, deps)
     end
     return nothing
 end
 
-function _generate!(rng::AbstractRNG, callback, dag::Pair{<:TableGenerator,<:Any}, deps)
+function _generate!(callback, rng::AbstractRNG, dag::Pair{<:TableGenerator,<:Any}, deps)
     gen, nodes = dag
 
     state = visit!(rng, gen, deps)
@@ -94,13 +94,13 @@ function _generate!(rng::AbstractRNG, callback, dag::Pair{<:TableGenerator,<:Any
         new_deps[d_key] = row
 
         for node in nodes
-            _generate!(rng, callback, node, new_deps)
+            _generate!(callback, rng, node, new_deps)
         end
     end
     return nothing
 end
 
-function _generate!(rng::AbstractRNG, callback, gen::TableGenerator, deps)
+function _generate!(callback, rng::AbstractRNG, gen::TableGenerator, deps)
     state = visit!(rng, gen, deps)
     t_key = table_key(gen)
     n = num_rows(rng, gen, state)
