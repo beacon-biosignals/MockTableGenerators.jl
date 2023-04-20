@@ -1,3 +1,4 @@
+using Aqua
 using Dates: Hour
 using MockTableGenerators: MockTableGenerators, TableGenerator, range
 using StableRNGs
@@ -5,6 +6,10 @@ using Test
 using UUIDs: uuid4
 
 @testset "MockTableGenerators" begin
+    @testset "Aqua" begin
+        Aqua.test_all(MockTableGenerators)
+    end
+
     @testset "TableGenerator" begin
         @testset "dependencies" begin
             struct DemoGenerator <: TableGenerator
