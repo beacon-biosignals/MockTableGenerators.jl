@@ -9,10 +9,12 @@ The MockTableGenerators.jl package provides an interface for composing the the g
 
 Users should define subtypes of `TableGenerator` and extend the `table_key`, `num_rows`, and `emit!` functions. Special row generators may also need to make use of `visit!` for introducing state or `dependency_key` for multiple `TableGenerator` types which creating rows for the same table. Instances of `TableGenerator`s can be constructed into a DAG which defines dependences between generators.
 
+Methods for functions that may introduce randomness (i.e., `num_rows`, `emit!`, and `visit!`) must accept a random number generator as the first argument in order to support reproducible generation.  In cases where `visit!` introduces randomness in the generated state and `emit!` and `num_rows` only consume this state, they still have to accept it but may ignore it.
+
 An example showing row generation including the use of variable number of rows, state, and conditional dependencies:
 
 ```julia
-using MockTableGenerators, Dates, UUIDs
+using MockTableGenerators, Dates, StableRNGs, UUIDs
 
 const FIRST_NAMES = ["Alice", "Bob", "Carol", "David"]
 const LAST_NAMES = ["Smith", "Johnson", "Williams", "Brown"]
@@ -24,10 +26,12 @@ end
 PersonGenerator(num::Integer) = PersonGenerator(range(num))
 
 MockTableGenerators.table_key(g::PersonGenerator) = :person
-MockTableGenerators.num_rows(g::PersonGenerator) = rand(g.num)
+MockTableGenerators.num_rows(rng, g::PersonGenerator) = rand(rng, g.num)
 
-function MockTableGenerators.emit!(g::PersonGenerator, deps)
-    return (; id=uuid4(), first_name=rand(FIRST_NAMES), last_name=rand(LAST_NAMES))
+function MockTableGenerators.emit!(rng, g::PersonGenerator, deps)
+    return (; id=uuid4(rng), 
+            first_name=rand(rng, FIRST_NAMES), 
+            last_name=rand(rng, LAST_NAMES))
 end
 
 
@@ -35,16 +39,16 @@ struct VisitGenerator <: TableGenerator
     num::AbstractRange{Int}
 end
 
-function MockTableGenerators.visit!(g::VisitGenerator, deps)
-    n = rand(g.num)
-    visits = sort!(rand(Date(1970):Day(1):Date(2000), n))
+function MockTableGenerators.visit!(rng, g::VisitGenerator, deps)
+    n = rand(rng, g.num)
+    visits = sort!(rand(rng, Date(1970):Day(1):Date(2000), n))
     return Dict(:i => 1, :visits => visits, :n => n)
 end
 
 MockTableGenerators.table_key(g::VisitGenerator) = :visit
-MockTableGenerators.num_rows(g::VisitGenerator, state) = state[:n]
+MockTableGenerators.num_rows(rng, g::VisitGenerator, state) = state[:n]
 
-function MockTableGenerators.emit!(g::VisitGenerator, deps, state)
+function MockTableGenerators.emit!(rng, g::VisitGenerator, deps, state)
     visit = popfirst!(state[:visits])
 
     row = (; id=uuid4(), person_id=deps[:person].id, index=state[:i], date=visit)
@@ -61,21 +65,22 @@ struct SymptomGenerator <: TableGenerator
     num::AbstractRange{Int}
 end
 
-function MockTableGenerators.visit!(g::SymptomGenerator, deps)
+function MockTableGenerators.visit!(rng, g::SymptomGenerator, deps)
     # Number of symptoms increase, on average, with number of visits
-    n = rand(min(deps[:visit].index, last(g.num)):last(g.num))
+    n = rand(rng, min(deps[:visit].index, last(g.num)):last(g.num))
     return (; n)
 end
 
 MockTableGenerators.table_key(g::SymptomGenerator) = :symptom
-MockTableGenerators.num_rows(g::SymptomGenerator, state) = state.n
+MockTableGenerators.num_rows(rng, g::SymptomGenerator, state) = state.n
 
-function MockTableGenerators.emit!(g::SymptomGenerator, deps, state)
+function MockTableGenerators.emit!(rng, g::SymptomGenerator, deps, state)
     # Conditional generation based upon number of visits
     symptoms = deps[:visit].index > 2 ? SEVERE_SYMPTOMS : LIGHT_SYMPTOMS
-    return (; visit_id=deps[:visit].id, symptom=rand(symptoms))
+    return (; visit_id=deps[:visit].id, symptom=rand(rng, symptoms))
 end
 
 const DAG = [PersonGenerator(3:5) => [VisitGenerator(1:4) => [SymptomGenerator(1:2)]]]
-collect(MockTableGenerators.generate(DAG))
+# pass RNG for reproducible generation:
+collect(MockTableGenerators.generate(StableRNG(11), DAG))
 ```
