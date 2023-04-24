@@ -55,7 +55,7 @@ function emit! end
 num_rows(rng, g::TableGenerator, state::Nothing) = num_rows(rng, g)
 emit!(rng, g::TableGenerator, deps, state::Nothing) = emit!(rng, g, deps)
 
-generate(dag; kwargs...) = generate(Random.GLOBAL_RNG, dag; kwargs...)
+generate(dag; kwargs...) = generate(GLOBAL_RNG, dag; kwargs...)
 
 function generate(rng::AbstractRNG, dag; size::Integer=10)
     channel = Channel(size) do ch
