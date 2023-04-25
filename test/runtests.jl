@@ -160,6 +160,8 @@ using UUIDs: uuid4
 
             # no error thrown here because of buffer >= n put on channel
             c = MockTableGenerators.generate(g; buffer=2)
+            # race condition
+            sleep(1)
             @test collect(c) == Any[:gen => 1, :gen => 2]
 
             @test_throws TaskFailedException collect(MockTableGenerators.generate(g; buffer=2))
