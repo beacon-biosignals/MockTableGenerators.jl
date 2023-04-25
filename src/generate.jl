@@ -57,8 +57,26 @@ emit!(rng, g::TableGenerator, deps, state::Nothing) = emit!(rng, g, deps)
 
 generate(dag; kwargs...) = generate(GLOBAL_RNG, dag; kwargs...)
 
-function generate(rng::AbstractRNG, dag; size::Integer=10)
-    channel = Channel(size) do ch
+"""
+    generate([rng::AbstractRNG=GLOBAL_RNG], dag; buffer::Integer=0)
+
+Execute the provided DAG.  This will create a `Channel` with buffer size
+`buffer`, traverse the DAG, and `put!` the output of each `emit!` call onto the
+channel.
+
+The return value is the `Channel`.  Use iteration (`for x in channel`) or
+`collect` to get the `emit!`ed values.
+
+Any errors thrown during DAG traversal will be propagated to any tasks waiting
+on the channel as a `TaskFailedException`.
+
+!!! warning
+    When using a buffered channel (i.e., `size > 0`) with buffer greater than
+    the total number of records `emit!`ed, errors may not be surfaced if the
+    channel is not immediated `wait`ed on (including iterated/`collect`ed).
+"""
+function generate(rng::AbstractRNG, dag; buffer::Integer=0)
+    channel = Channel(buffer) do ch
         return generate(rng, dag) do table, row
             return put!(ch, table => row)
         end
@@ -67,6 +85,14 @@ function generate(rng::AbstractRNG, dag; size::Integer=10)
     return channel
 end
 
+"""
+    generate(callback, rng::AbstractRNG, dag)
+
+Execute the DAG, calling `callback(table, row)` on each `emit!`ed `table => row`
+pair.
+
+Returns `nothing`.
+"""
 function generate(callback, rng::AbstractRNG, dag)
     return _generate!(callback, rng, dag, Dict())
 end
