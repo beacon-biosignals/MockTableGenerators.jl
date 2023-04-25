@@ -153,9 +153,13 @@ using UUIDs: uuid4
 
             @test_throws TaskFailedException collect(MockTableGenerators.generate(g))
             c = MockTableGenerators.generate(g; buffer=0)
+            # race condition
+            sleep(1)
             @test_throws TaskFailedException collect(c)
 
             c = MockTableGenerators.generate(g; buffer=1)
+            # race condition
+            sleep(1)
             @test_throws TaskFailedException collect(c)
 
             # no error thrown here because of buffer >= n put on channel
