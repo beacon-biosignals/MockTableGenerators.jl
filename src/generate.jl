@@ -71,9 +71,13 @@ Any errors thrown during DAG traversal will be propagated to any tasks waiting
 on the channel as a `TaskFailedException`.
 
 !!! warning
-    When using a buffered channel (i.e., `size > 0`) with buffer greater than
-    the total number of records `emit!`ed, errors may not be surfaced if the
-    channel is not immediated `wait`ed on (including iterated/`collect`ed).
+
+    Errors may not be surfaced if the channel is closed (i.e. due to an
+    unhandled exception) before being `wait`ed on (including
+    iterated/`collect`ed).  This can happen even with an un-buffered channel
+    (i.e., `size=0`) if the error occurs before anything is `put!` onto the
+    channel.
+
 """
 function generate(rng::AbstractRNG, dag; buffer::Integer=0)
     channel = Channel(buffer) do ch
