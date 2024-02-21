@@ -176,9 +176,9 @@ We can also separate these into individual tables.
 One, but not the only, way to do this is as follows.
 
 ```julia-repl
-julia> using DataFrames
+julia> using DataFrames, OrderedCollections
 
-julia> tables = Dict{Symbol,DataFrame}();
+julia> tables = OrderedDict{Symbol,DataFrame}();
 
 julia> for (name, row) in results
            push!(get!(tables, name, DataFrame()), row)
@@ -231,3 +231,7 @@ julia> tables[:visit]
   15 │ 5198d75c-8e1c-4d93-8ae9-ab976c44…  Fatigue
   16 │ 5198d75c-8e1c-4d93-8ae9-ab976c44…  Fatigue
 ```
+
+Here we use an `OrderedDict` to preserve insertion order. This ensures that tables which are used downstream in the DAG
+show up earlier in the dictionary. This allows uploading the tables into e.g. databases which make foreign key checks
+smoother, since one simply needs to upload in the order the resulting `OrderedDict` uses.
