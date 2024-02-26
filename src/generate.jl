@@ -7,8 +7,8 @@ abstract type TableGenerator end
 """
     visit!(rng, g::TableGenerator, deps)
 
-Function allows generates to update state each time the node is visited the the DAG. When
-a `TableGenerator` creates a batch of rows this function is only called once.
+Used in [`generate`](@ref) to update state each time the node is visited in the DAG.
+When a `TableGenerator` creates a batch of rows this function is only called once.
 """
 visit!(rng, g::TableGenerator, deps) = nothing
 
@@ -40,10 +40,10 @@ rows can vary between DAG visits.
 function num_rows end
 
 """
-    emit(rng::AbstractRNG, g::TableGenerator, deps::Dict{Symbol,<:Any}, state=nothing)
-    emit(rng::AbstractRNG, g::TableGenerator, deps::Dict{Symbol,<:Any})
+    emit!(rng::AbstractRNG, g::TableGenerator, deps::Dict{Symbol,<:Any}, state=nothing)
+    emit!(rng::AbstractRNG, g::TableGenerator, deps::Dict{Symbol,<:Any})
 
-Produces a single row from the table generator. Dependent generators will be passed the
+Produces a single row from the table generator `g`. Dependent generators will be passed the
 contents of the rows they depend on via `deps` and indexed by the result of
 `dependency_key`. Any state returned from `visit!(g, ...)` will be passed into this function
 via `state` allowing row generation to be conditional on previous rows created by this
@@ -55,6 +55,13 @@ function emit! end
 num_rows(rng, g::TableGenerator, state::Nothing) = num_rows(rng, g)
 emit!(rng, g::TableGenerator, deps, state::Nothing) = emit!(rng, g, deps)
 
+
+"""
+    generate([rng::AbstractRNG=GLOBAL_RNG], dag; size::Integer=10) -> Channel{Any}
+
+Traverses the `dag` and generates the records specified by the [`TableGenerator`](@ref)
+of each node. Returns a `Channel` of size `size` comprising `table_key => record` pairs.
+"""
 generate(dag; kwargs...) = generate(GLOBAL_RNG, dag; kwargs...)
 
 function generate(rng::AbstractRNG, dag; size::Integer=10)
@@ -67,6 +74,12 @@ function generate(rng::AbstractRNG, dag; size::Integer=10)
     return channel
 end
 
+"""
+    generate(callback, rng::AbstractRNG, dag) -> Nothing
+
+Traverses the `dag` and generates the records specified by the [`TableGenerator`](@ref)
+of each node, and then exectues `callback(table_key, record)` on each one.
+"""
 function generate(callback, rng::AbstractRNG, dag)
     return _generate!(callback, rng, dag, Dict())
 end
