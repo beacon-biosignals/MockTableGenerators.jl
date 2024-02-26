@@ -57,7 +57,7 @@ emit!(rng, g::TableGenerator, deps, state::Nothing) = emit!(rng, g, deps)
 
 
 """
-    generate([rng::AbstractRNG=GLOBAL_RNG], dag; size::Integer=10) -> Channel{Any}
+    generate([rng::AbstractRNG=GLOBAL_RNG], dag; size::Integer=10) -> Channel{Pair{<:Symbol, <:NamedTuple}}
 
 Traverses the `dag` and generates the records specified by the [`TableGenerator`](@ref)
 of each node. Returns a `Channel` of size `size` comprising `table_key => record` pairs.
@@ -65,7 +65,7 @@ of each node. Returns a `Channel` of size `size` comprising `table_key => record
 generate(dag; kwargs...) = generate(GLOBAL_RNG, dag; kwargs...)
 
 function generate(rng::AbstractRNG, dag; size::Integer=10)
-    channel = Channel(size) do ch
+    channel = Channel{Pair{<:Symbol,<:NamedTuple}}(size) do ch
         return generate(rng, dag) do table, row
             return put!(ch, table => row)
         end
