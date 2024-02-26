@@ -132,6 +132,42 @@ using UUIDs: uuid4
             @test count(==(:letter), table_names) > 2
             @test count(==(:alpha), table_names) == 2
         end
+
+        @testset "incorrectly formatted dag" begin
+            struct TestGenerator <: TableGenerator
+                num::Int
+            end
+
+            MockTableGenerators.table_key(g::TestGenerator) = Symbol(:test_, g.num)
+            MockTableGenerators.num_rows(rng, g::TestGenerator) = 1
+            function MockTableGenerators.emit!(rng, g::TestGenerator, deps)
+                ancestor = Symbol(:test_, g.num+1)
+                ancestor = haskey(deps, ancestor) ? deps[ancestor].id : nothing
+                (; id=g.num, ancestor)
+            end
+
+            # These DAGs hit a method error on Pair{<:TestGenerator, <:TestGenerator}
+            bad_dag = TestGenerator(2) => TestGenerator(1)
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
+
+            bad_dag = TestGenerator(3) => [TestGenerator(2) => TestGenerator(1)]
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
+
+            # The DAGs are ill-specified as the child nodes are unable to inherit the
+            # relevant info from their ancestor
+            bad_dag = TestGenerator(3) => TestGenerator(2) => TestGenerator(1)
+            res = collect(MockTableGenerators.generate(bad_dag))
+            @test_broken [r.ancestor for r in last.(res)] == [nothing, 3, 2]
+
+            bad_dag = TestGenerator(3) => TestGenerator(2) => [TestGenerator(1)]
+            res = collect(MockTableGenerators.generate(bad_dag))
+            @test_broken [r.ancestor for r in last.(res)] == [nothing, 3, 2]
+
+            # This DAG is correctly formatted
+            dag = TestGenerator(3) => [TestGenerator(2) => [TestGenerator(1)]]
+            res = collect(MockTableGenerators.generate(dag))
+            @test [r.ancestor for r in last.(res)] == [nothing, 3, 2]
+        end
     end
 
     @testset "range" begin
