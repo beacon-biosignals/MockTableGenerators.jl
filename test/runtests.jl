@@ -148,22 +148,6 @@ using UUIDs: uuid4
             @test count(==(:letter), table_names) > 2
             @test count(==(:alpha), table_names) == 2
         end
-
-        @testset "incorrectly formatted dag" begin
-            struct TestGenerator <: TableGenerator
-                num::Int
-            end
-
-            MockTableGenerators.table_key(g::TestGenerator) = Symbol(:test_, g.num)
-            MockTableGenerators.num_rows(rng, g::TestGenerator) = 1
-            function MockTableGenerators.emit!(rng, g::TestGenerator, deps)
-                ancestor = Symbol(:test_, g.num+1)
-                ancestor = haskey(deps, ancestor) ? deps[ancestor].id : nothing
-                (; id=g.num, ancestor)
-            end
-
-
-        end
     end
 
     @testset "range" begin
