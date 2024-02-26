@@ -41,6 +41,22 @@ using UUIDs: uuid4
             @test rows[2].depends_on == rows[1].id
             @test rows[3].depends_on == nothing
             @test rows[4].depends_on == rows[3].id
+
+            # These DAGs hit a method error on Pair{<:TestGenerator, <:TestGenerator}
+            bad_dag = DemoGenerator(1) => DemoGenerator(1)
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
+
+            bad_dag = DemoGenerator(1) => [DemoGenerator(1) => DemoGenerator(1)]
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
+
+            # These DAGs hit a method error on Pair{<:TestGenerator, Pair{<:TestGenerator, <:TestGenerator}}
+            # Without this type-restriction the DAGs would be ill-specified and the child
+            # nodes would not inherit the depends_on info from the correct parent.
+            bad_dag = DemoGenerator(1) => DemoGenerator(1) => DemoGenerator(1)
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
+
+            bad_dag = DemoGenerator(1) => DemoGenerator(1) => [DemoGenerator(1)]
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
         end
 
         @testset "variable rows" begin
@@ -146,26 +162,7 @@ using UUIDs: uuid4
                 (; id=g.num, ancestor)
             end
 
-            # These DAGs hit a method error on Pair{<:TestGenerator, <:TestGenerator}
-            bad_dag = TestGenerator(2) => TestGenerator(1)
-            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
 
-            bad_dag = TestGenerator(3) => [TestGenerator(2) => TestGenerator(1)]
-            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
-
-            # The DAGs are ill-specified as the child nodes are unable to inherit the
-            # relevant info from their ancestor. This hits a method error on
-            #  Pair{<:TestGenerator, Pair{<:TestGenerator, <:TestGenerator}}
-            bad_dag = TestGenerator(3) => TestGenerator(2) => TestGenerator(1)
-            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
-
-            bad_dag = TestGenerator(3) => TestGenerator(2) => [TestGenerator(1)]
-            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
-
-            # This DAG is correctly formatted
-            dag = TestGenerator(3) => [TestGenerator(2) => [TestGenerator(1)]]
-            res = collect(MockTableGenerators.generate(dag))
-            @test [r.ancestor for r in last.(res)] == [nothing, 3, 2]
         end
     end
 
