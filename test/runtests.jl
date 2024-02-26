@@ -154,14 +154,13 @@ using UUIDs: uuid4
             @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
 
             # The DAGs are ill-specified as the child nodes are unable to inherit the
-            # relevant info from their ancestor
+            # relevant info from their ancestor. This hits a method error on
+            #  Pair{<:TestGenerator, Pair{<:TestGenerator, <:TestGenerator}}
             bad_dag = TestGenerator(3) => TestGenerator(2) => TestGenerator(1)
-            res = collect(MockTableGenerators.generate(bad_dag))
-            @test_broken [r.ancestor for r in last.(res)] == [nothing, 3, 2]
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
 
             bad_dag = TestGenerator(3) => TestGenerator(2) => [TestGenerator(1)]
-            res = collect(MockTableGenerators.generate(bad_dag))
-            @test_broken [r.ancestor for r in last.(res)] == [nothing, 3, 2]
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
 
             # This DAG is correctly formatted
             dag = TestGenerator(3) => [TestGenerator(2) => [TestGenerator(1)]]

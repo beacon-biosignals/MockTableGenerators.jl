@@ -91,7 +91,7 @@ function _generate!(callback, rng::AbstractRNG, dag::AbstractVector, deps)
     return nothing
 end
 
-function _generate!(callback, rng::AbstractRNG, dag::Pair{<:TableGenerator,<:Any}, deps)
+function _generate!(callback, rng::AbstractRNG, dag::Pair{<:TableGenerator,<:AbstractVector}, deps)
     gen, nodes = dag
 
     state = visit!(rng, gen, deps)
