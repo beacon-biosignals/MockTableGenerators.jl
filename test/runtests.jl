@@ -42,21 +42,32 @@ using UUIDs: uuid4
             @test rows[3].depends_on == nothing
             @test rows[4].depends_on == rows[3].id
 
-            # These DAGs hit a method error on Pair{<:TestGenerator, <:TestGenerator}
             bad_dag = DemoGenerator(1) => DemoGenerator(1)
-            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
+            results = collect(MockTableGenerators.generate(bad_dag))
+            rows = last.(results)
+            @test rows[1].depends_on == nothing
+            @test rows[2].depends_on == rows[1].id
 
             bad_dag = DemoGenerator(1) => [DemoGenerator(1) => DemoGenerator(1)]
-            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
+            results = collect(MockTableGenerators.generate(bad_dag))
+            rows = last.(results)
+            @test rows[1].depends_on == nothing
+            @test rows[2].depends_on == rows[1].id
+            @test rows[3].depends_on == rows[2].id
 
-            # These DAGs hit a method error on Pair{<:TestGenerator, Pair{<:TestGenerator, <:TestGenerator}}
-            # Without this type-restriction the DAGs would be ill-specified and the child
-            # nodes would not inherit the depends_on info from the correct parent.
             bad_dag = DemoGenerator(1) => DemoGenerator(1) => DemoGenerator(1)
-            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
+            results = collect(MockTableGenerators.generate(bad_dag))
+            rows = last.(results)
+            @test rows[1].depends_on == nothing
+            @test rows[2].depends_on == rows[1].id
+            @test rows[3].depends_on == rows[2].id
 
             bad_dag = DemoGenerator(1) => DemoGenerator(1) => [DemoGenerator(1)]
-            @test_throws TaskFailedException collect(MockTableGenerators.generate(bad_dag))
+            results = collect(MockTableGenerators.generate(bad_dag))
+            rows = last.(results)
+            @test rows[1].depends_on == nothing
+            @test rows[2].depends_on == rows[1].id
+            @test rows[3].depends_on == rows[2].id
         end
 
         @testset "variable rows" begin
