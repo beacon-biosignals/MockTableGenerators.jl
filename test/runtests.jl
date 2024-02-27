@@ -42,32 +42,20 @@ using UUIDs: uuid4
             @test rows[3].depends_on == nothing
             @test rows[4].depends_on == rows[3].id
 
-            bad_dag = DemoGenerator(1) => DemoGenerator(1)
-            results = collect(MockTableGenerators.generate(bad_dag))
-            rows = last.(results)
-            @test rows[1].depends_on == nothing
-            @test rows[2].depends_on == rows[1].id
+            nested_dags = (
+                DemoGenerator(1) => DemoGenerator(1) => DemoGenerator(1),
+                DemoGenerator(1) => DemoGenerator(1) => [DemoGenerator(1)],
+                DemoGenerator(1) => [DemoGenerator(1) => DemoGenerator(1)],
+                DemoGenerator(1) => [DemoGenerator(1) => [DemoGenerator(1)]],
+            )
 
-            bad_dag = DemoGenerator(1) => [DemoGenerator(1) => DemoGenerator(1)]
-            results = collect(MockTableGenerators.generate(bad_dag))
-            rows = last.(results)
-            @test rows[1].depends_on == nothing
-            @test rows[2].depends_on == rows[1].id
-            @test rows[3].depends_on == rows[2].id
-
-            bad_dag = DemoGenerator(1) => DemoGenerator(1) => DemoGenerator(1)
-            results = collect(MockTableGenerators.generate(bad_dag))
-            rows = last.(results)
-            @test rows[1].depends_on == nothing
-            @test rows[2].depends_on == rows[1].id
-            @test rows[3].depends_on == rows[2].id
-
-            bad_dag = DemoGenerator(1) => DemoGenerator(1) => [DemoGenerator(1)]
-            results = collect(MockTableGenerators.generate(bad_dag))
-            rows = last.(results)
-            @test rows[1].depends_on == nothing
-            @test rows[2].depends_on == rows[1].id
-            @test rows[3].depends_on == rows[2].id
+            for dag in nested_dags
+                results = collect(MockTableGenerators.generate(dag))
+                rows = last.(results)
+                @test rows[1].depends_on == nothing
+                @test rows[2].depends_on == rows[1].id
+                @test rows[3].depends_on == rows[2].id
+            end
         end
 
         @testset "variable rows" begin
