@@ -65,7 +65,7 @@ of each node. Returns a `Channel` of size `size` comprising `table_key => record
 generate(dag; kwargs...) = generate(GLOBAL_RNG, dag; kwargs...)
 
 function generate(rng::AbstractRNG, dag; size::Integer=10)
-    channel = Channel{Pair{<:Symbol,<:NamedTuple}}(size) do ch
+    channel = Channel{Pair{Symbol,<:Any}}(size) do ch
         return generate(rng, dag) do table, row
             return put!(ch, table => row)
         end

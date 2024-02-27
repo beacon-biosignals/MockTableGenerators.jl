@@ -84,7 +84,7 @@ const DAG = [PersonGenerator(3:5) => [VisitGenerator(1:4) => [SymptomGenerator(1
 # pass RNG for reproducible generation:
 results = collect(MockTableGenerators.generate(StableRNG(11), DAG))
 
-# Alternatively, linear DAGs can be also constructed in a flat representation:
+# Alternatively, since v0.2.1, linear DAGs can be also constructed in a flat representation:
 const FLAT_DAG = PersonGenerator(3:5) => VisitGenerator(1:4) => SymptomGenerator(1:2)
 flat_results = collect(MockTableGenerators.generate(StableRNG(11), FLAT_DAG))
 
