@@ -78,7 +78,7 @@ end
     generate(callback, rng::AbstractRNG, dag) -> Nothing
 
 Traverses the `dag` and generates the records specified by the [`TableGenerator`](@ref)
-of each node, and then exectues `callback(table_key, record)` on each one.
+of each node, and then executes `callback(table_key, record)` on each one.
 """
 function generate(callback, rng::AbstractRNG, dag)
     return _generate!(callback, rng, dag, Dict())
