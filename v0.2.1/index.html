@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>API Documentation · MockTableGenerators.jl</title><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href>MockTableGenerators.jl</a></span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>API Documentation</a><ul class="internal"><li><a class="tocitem" href="#API"><span>API</span></a></li><li><a class="tocitem" href="#Example"><span>Example</span></a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>API Documentation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>API Documentation</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/beacon-biosignals/MockTableGenerators.jl/blob/main/docs/src/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="MockTableGenerators.jl"><a class="docs-heading-anchor" href="#MockTableGenerators.jl">MockTableGenerators.jl</a><a id="MockTableGenerators.jl-1"></a><a class="docs-heading-anchor-permalink" href="#MockTableGenerators.jl" title="Permalink"></a></h1><p>This package provides an interface for composing the the generation of multiple dependent <a href="https://github.com/JuliaData/Tables.jl">Tables.jl</a>-compatible tables to produce realistic mock datasets.</p><p>The interface is based around a <code>TableGenerator</code> abstract type and a set of associated methods that describe various properties of the tables and the relationships between them. Generators, i.e. instances of subtypes of <code>TableGenerator</code>, can then be organized into a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">directed acyclic graph</a> (DAG) that defines the dependencies between generators.</p><p>Defining a generator is as simple as defining a subtype of <code>TableGenerator</code> and extending the functions <a href="#MockTableGenerators.table_key"><code>table_key</code></a>, <a href="#MockTableGenerators.num_rows"><code>num_rows</code></a>, and <a href="#MockTableGenerators.emit!"><code>emit!</code></a>. Special row generators may also need to extend <a href="#MockTableGenerators.visit!"><code>visit!</code></a> for introducing state or <a href="#MockTableGenerators.dependency_key"><code>dependency_key</code></a> for multiple <code>TableGenerator</code> types which creating rows for the same table.</p><h2 id="API"><a class="docs-heading-anchor" href="#API">API</a><a id="API-1"></a><a class="docs-heading-anchor-permalink" href="#API" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-binding" id="MockTableGenerators.table_key" href="#MockTableGenerators.table_key"><code>MockTableGenerators.table_key</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">table_key(::TableGenerator) -&gt; Symbol</code></pre><p>States the name of the table associated with the subtype instance of <code>TableGenerator</code>. The defined name will be included in the DAG output to identify the row&#39;s table.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/beacon-biosignals/MockTableGenerators.jl/blob/26cc98cb8f23da217b8c07d02f8007928532bcf8/src/generate.jl#L15-L20">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="MockTableGenerators.num_rows" href="#MockTableGenerators.num_rows"><code>MockTableGenerators.num_rows</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">num_rows(rng::AbstractRNG, g::TableGenerator, state=nothing) -&gt; Int
+num_rows(rng::AbstractRNG, g::TableGenerator) -&gt; Int</code></pre><p>Returns the number of rows that should be produced for this DAG node visit. The number of rows can vary between DAG visits.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/beacon-biosignals/MockTableGenerators.jl/blob/26cc98cb8f23da217b8c07d02f8007928532bcf8/src/generate.jl#L33-L39">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="MockTableGenerators.emit!" href="#MockTableGenerators.emit!"><code>MockTableGenerators.emit!</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">emit(rng::AbstractRNG, g::TableGenerator, deps::Dict{Symbol,&lt;:Any}, state=nothing)
+emit(rng::AbstractRNG, g::TableGenerator, deps::Dict{Symbol,&lt;:Any})</code></pre><p>Produces a single row from the table generator. Dependent generators will be passed the contents of the rows they depend on via <code>deps</code> and indexed by the result of <code>dependency_key</code>. Any state returned from <code>visit!(g, ...)</code> will be passed into this function via <code>state</code> allowing row generation to be conditional on previous rows created by this generator.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/beacon-biosignals/MockTableGenerators.jl/blob/26cc98cb8f23da217b8c07d02f8007928532bcf8/src/generate.jl#L42-L51">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="MockTableGenerators.dependency_key" href="#MockTableGenerators.dependency_key"><code>MockTableGenerators.dependency_key</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">dependency_key(::TableGenerator) -&gt; Symbol</code></pre><p>States the key used in the dependency dictionary (<code>deps</code>) to uniquely identify this <code>TableGenerator</code>. When undefined <code>dependency_key</code> will fall back on calling <code>table_key</code>.</p><p>See also: <a href="#MockTableGenerators.emit!"><code>emit!</code></a>, <a href="#MockTableGenerators.table_key"><code>table_key</code></a></p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/beacon-biosignals/MockTableGenerators.jl/blob/26cc98cb8f23da217b8c07d02f8007928532bcf8/src/generate.jl#L23-L30">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="MockTableGenerators.visit!" href="#MockTableGenerators.visit!"><code>MockTableGenerators.visit!</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">visit!(rng, g::TableGenerator, deps)</code></pre><p>Function allows generates to update state each time the node is visited the the DAG. When a <code>TableGenerator</code> creates a batch of rows this function is only called once.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/beacon-biosignals/MockTableGenerators.jl/blob/26cc98cb8f23da217b8c07d02f8007928532bcf8/src/generate.jl#L7-L12">source</a></section></article><h2 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h2><p>Say we want to define tables <code>person</code>, <code>visit</code>, and <code>symptom</code>, the rows of which describe people, their visits to a doctor&#39;s office, and the symptoms with which they presented at each visit, respectively.</p><p>We&#39;ll start by describing the people. Each person will have a first name and last name and will be uniquely identified by a UUID.</p><pre><code class="language-julia hljs">using MockTableGenerators, Dates, StableRNGs, UUIDs
+
+first_names = [&quot;Alice&quot;, &quot;Bob&quot;, &quot;Carol&quot;, &quot;David&quot;]
+last_names = [&quot;Smith&quot;, &quot;Johnson&quot;, &quot;Williams&quot;, &quot;Brown&quot;]
+
+# We&#39;ll use the `num` field here to provide bounds on the number of generated rows
+struct PersonGenerator &lt;: TableGenerator
+    num::UnitRange{Int}
+end
+
+# Rows of this table will be associated with the name `person` in the generated output
+MockTableGenerators.table_key(g::PersonGenerator) = :person
+
+# There will be a random number of rows within the bounds set by the generator type
+MockTableGenerators.num_rows(rng, g::PersonGenerator) = rand(rng, g.num)
+
+# Each row will have a `UUID` called `id` and a random pairing of first and last names
+function MockTableGenerators.emit!(rng, g::PersonGenerator, deps)
+    return (; id=uuid4(rng),
+            first_name=rand(rng, first_names),
+            last_name=rand(rng, last_names))
+end</code></pre><p>With that setup, let&#39;s try generating just a table of exactly four people, ignoring visits and symptoms for now. To use the generator to generate rows, we&#39;ll simply pass it to <code>generate</code>. In this example, we&#39;ll use a <code>StableRNG</code> from the StableRNGs.jl package to reproducibly generate the rows. Note that providing a random number generator when calling <code>generate</code> is optional, but new methods like those shown above must allow one to be passed as the first argument.</p><pre><code class="language-julia-repl hljs">julia&gt; rng = StableRNG(11);
+
+julia&gt; MockTableGenerators.generate(rng, PersonGenerator(4:4))
+Channel{Any}(10) (closed)
+
+julia&gt; collect(ans)
+4-element Vector{Any}:
+ :person =&gt; (id = UUID(&quot;5a3d3d5e-ff13-417a-8b79-7c9e0c9cfb56&quot;), first_name = &quot;David&quot;, last_name = &quot;Brown&quot;)
+ :person =&gt; (id = UUID(&quot;9231b8a2-2320-4ef4-a1ed-0719b3373395&quot;), first_name = &quot;Bob&quot;, last_name = &quot;Williams&quot;)
+ :person =&gt; (id = UUID(&quot;80f3c3fb-afb7-44de-889d-0b95221178c2&quot;), first_name = &quot;Bob&quot;, last_name = &quot;Brown&quot;)
+ :person =&gt; (id = UUID(&quot;19829759-e683-4d01-8481-cba1b28467d7&quot;), first_name = &quot;Alice&quot;, last_name = &quot;Brown&quot;)</code></pre><p>The output of <code>generate</code> is a <code>Channel</code> that iterates <code>table_key =&gt; row</code> pairs.</p><p>Now let&#39;s add visits to the mix:</p><pre><code class="language-julia hljs">struct VisitGenerator &lt;: TableGenerator
+    num::UnitRange{Int}
+end
+
+function MockTableGenerators.visit!(rng, g::VisitGenerator, deps)
+    n = rand(rng, g.num)
+    visits = sort!(rand(rng, Date(1970):Day(1):Date(2000), n))
+    return Dict(:i =&gt; 1, :visits =&gt; visits, :n =&gt; n)
+end
+
+MockTableGenerators.table_key(g::VisitGenerator) = :visit
+
+MockTableGenerators.num_rows(rng, g::VisitGenerator, state) = state[:n]
+
+function MockTableGenerators.emit!(rng, g::VisitGenerator, deps, state)
+    visit = popfirst!(state[:visits])
+    row = (; id=uuid4(rng), person_id=deps[:person].id, index=state[:i], date=visit)
+    state[:i] += 1
+    return row
+end</code></pre><p>And symptoms:</p><pre><code class="language-julia hljs">light_symptoms = [&quot;Fever&quot;, &quot;Chills&quot;, &quot;Fatigue&quot;, &quot;Runny nose&quot;, &quot;Cough&quot;]
+severe_symptoms = [&quot;Weakness&quot;, &quot;Muscle Loss&quot;, &quot;Fainting&quot;]
+
+struct SymptomGenerator &lt;: TableGenerator
+    num::UnitRange{Int}
+end
+
+function MockTableGenerators.visit!(rng, g::SymptomGenerator, deps)
+    # Number of symptoms increase, on average, with number of visits
+    n = rand(rng, min(deps[:visit].index, last(g.num)):last(g.num))
+    return (; n)
+end
+
+MockTableGenerators.table_key(g::SymptomGenerator) = :symptom
+MockTableGenerators.num_rows(rng, g::SymptomGenerator, state) = state.n
+
+function MockTableGenerators.emit!(rng, g::SymptomGenerator, deps, state)
+    # Conditional generation based upon number of visits
+    symptoms = deps[:visit].index &gt; 2 ? severe_symptoms : light_symptoms
+    return (; visit_id=deps[:visit].id, symptom=rand(rng, symptoms))
+end</code></pre><p>In this case, our DAG looks like a straight shot from persons to visits to symptoms. We&#39;ll generate rows for 3 to 5 people, each with 1 to 4 visits, at which they had 1 or 2 symptoms.</p><pre><code class="language-julia-repl hljs">julia&gt; dag = [PersonGenerator(3:5) =&gt; [VisitGenerator(1:4) =&gt; [SymptomGenerator(1:2)]]];
+
+julia&gt; results = collect(MockTableGenerators.generate(dag))
+45-element Vector{Any}:
+  :person =&gt; (id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), first_name = &quot;Bob&quot;, last_name = &quot;Williams&quot;)
+   :visit =&gt; (id = UUID(&quot;cea4339d-325a-41f8-9a5e-fd02323591ba&quot;), person_id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), index = 1, date = Date(&quot;1974-06-02&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;cea4339d-325a-41f8-9a5e-fd02323591ba&quot;), symptom = &quot;Fever&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;cea4339d-325a-41f8-9a5e-fd02323591ba&quot;), symptom = &quot;Runny nose&quot;)
+   :visit =&gt; (id = UUID(&quot;d54d21b0-59d0-4595-882f-c7bc0fc7bde4&quot;), person_id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), index = 2, date = Date(&quot;1982-08-04&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;d54d21b0-59d0-4595-882f-c7bc0fc7bde4&quot;), symptom = &quot;Fatigue&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;d54d21b0-59d0-4595-882f-c7bc0fc7bde4&quot;), symptom = &quot;Chills&quot;)
+   :visit =&gt; (id = UUID(&quot;77139cf8-6bdc-43a1-96dd-be3f8d850b30&quot;), person_id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), index = 3, date = Date(&quot;1985-01-10&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;77139cf8-6bdc-43a1-96dd-be3f8d850b30&quot;), symptom = &quot;Muscle Loss&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;77139cf8-6bdc-43a1-96dd-be3f8d850b30&quot;), symptom = &quot;Weakness&quot;)
+   :visit =&gt; (id = UUID(&quot;c707dbd5-519a-4948-bdb2-57225970ef9a&quot;), person_id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), index = 4, date = Date(&quot;1994-10-02&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;c707dbd5-519a-4948-bdb2-57225970ef9a&quot;), symptom = &quot;Fainting&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;c707dbd5-519a-4948-bdb2-57225970ef9a&quot;), symptom = &quot;Muscle Loss&quot;)
+  :person =&gt; (id = UUID(&quot;1dbe6a94-f238-481c-8137-c5a06272c93f&quot;), first_name = &quot;Bob&quot;, last_name = &quot;Brown&quot;)
+   :visit =&gt; (id = UUID(&quot;443b40e3-a6a2-40bc-8f66-71f5c22da685&quot;), person_id = UUID(&quot;1dbe6a94-f238-481c-8137-c5a06272c93f&quot;), index = 1, date = Date(&quot;1972-06-30&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;443b40e3-a6a2-40bc-8f66-71f5c22da685&quot;), symptom = &quot;Fatigue&quot;)
+   :visit =&gt; (id = UUID(&quot;cae1ad18-40b5-4eec-91ec-52b65d8c346f&quot;), person_id = UUID(&quot;1dbe6a94-f238-481c-8137-c5a06272c93f&quot;), index = 2, date = Date(&quot;1989-04-23&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;cae1ad18-40b5-4eec-91ec-52b65d8c346f&quot;), symptom = &quot;Fatigue&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;cae1ad18-40b5-4eec-91ec-52b65d8c346f&quot;), symptom = &quot;Chills&quot;)
+   :visit =&gt; (id = UUID(&quot;11d23dc3-63c5-48d2-890d-2623d5a48261&quot;), person_id = UUID(&quot;1dbe6a94-f238-481c-8137-c5a06272c93f&quot;), index = 3, date = Date(&quot;1991-09-07&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;11d23dc3-63c5-48d2-890d-2623d5a48261&quot;), symptom = &quot;Muscle Loss&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;11d23dc3-63c5-48d2-890d-2623d5a48261&quot;), symptom = &quot;Fainting&quot;)
+  :person =&gt; (id = UUID(&quot;8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa&quot;), first_name = &quot;Bob&quot;, last_name = &quot;Brown&quot;)
+   :visit =&gt; (id = UUID(&quot;98a05704-62fa-4a30-b41b-95a765c963af&quot;), person_id = UUID(&quot;8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa&quot;), index = 1, date = Date(&quot;1973-09-05&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;98a05704-62fa-4a30-b41b-95a765c963af&quot;), symptom = &quot;Fever&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;98a05704-62fa-4a30-b41b-95a765c963af&quot;), symptom = &quot;Fatigue&quot;)
+   :visit =&gt; (id = UUID(&quot;d05f883e-68f7-46fc-a106-042f10749bf3&quot;), person_id = UUID(&quot;8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa&quot;), index = 2, date = Date(&quot;1998-12-11&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;d05f883e-68f7-46fc-a106-042f10749bf3&quot;), symptom = &quot;Runny nose&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;d05f883e-68f7-46fc-a106-042f10749bf3&quot;), symptom = &quot;Fever&quot;)
+   :visit =&gt; (id = UUID(&quot;fc6a14a5-49f3-4746-b22d-f451e1dc4507&quot;), person_id = UUID(&quot;8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa&quot;), index = 3, date = Date(&quot;1999-05-10&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;fc6a14a5-49f3-4746-b22d-f451e1dc4507&quot;), symptom = &quot;Weakness&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;fc6a14a5-49f3-4746-b22d-f451e1dc4507&quot;), symptom = &quot;Fainting&quot;)
+  :person =&gt; (id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), first_name = &quot;Carol&quot;, last_name = &quot;Smith&quot;)
+   :visit =&gt; (id = UUID(&quot;e9dc403e-443b-4b15-8894-fc399967b1e5&quot;), person_id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), index = 1, date = Date(&quot;1973-06-13&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;e9dc403e-443b-4b15-8894-fc399967b1e5&quot;), symptom = &quot;Runny nose&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;e9dc403e-443b-4b15-8894-fc399967b1e5&quot;), symptom = &quot;Runny nose&quot;)
+   :visit =&gt; (id = UUID(&quot;84cd20d4-8836-464f-a76c-52ec80b9c022&quot;), person_id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), index = 2, date = Date(&quot;1980-07-05&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;84cd20d4-8836-464f-a76c-52ec80b9c022&quot;), symptom = &quot;Fever&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;84cd20d4-8836-464f-a76c-52ec80b9c022&quot;), symptom = &quot;Cough&quot;)
+   :visit =&gt; (id = UUID(&quot;49ad303b-db4a-4000-9376-c11580e22d4a&quot;), person_id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), index = 3, date = Date(&quot;1981-02-15&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;49ad303b-db4a-4000-9376-c11580e22d4a&quot;), symptom = &quot;Weakness&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;49ad303b-db4a-4000-9376-c11580e22d4a&quot;), symptom = &quot;Weakness&quot;)
+   :visit =&gt; (id = UUID(&quot;6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11&quot;), person_id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), index = 4, date = Date(&quot;1998-03-24&quot;))
+ :symptom =&gt; (visit_id = UUID(&quot;6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11&quot;), symptom = &quot;Fainting&quot;)
+ :symptom =&gt; (visit_id = UUID(&quot;6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11&quot;), symptom = &quot;Muscle Loss&quot;)</code></pre><p>We can also separate these into individual tables. This can be done after generating rows by calling <code>collect_tables</code>, or tables can be generated directly using <code>generate_tables</code> in place of <code>generate</code>. The following example shows the former to organize the rows generated above.</p><pre><code class="language-julia-repl hljs">julia&gt; tables = MockTableGenerators.collect_tables(results);
+
+julia&gt; tables.person
+4-element Vector{@NamedTuple{id::UUID, first_name::String, last_name::String}}:
+ (id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), first_name = &quot;Bob&quot;, last_name = &quot;Williams&quot;)
+ (id = UUID(&quot;1dbe6a94-f238-481c-8137-c5a06272c93f&quot;), first_name = &quot;Bob&quot;, last_name = &quot;Brown&quot;)
+ (id = UUID(&quot;8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa&quot;), first_name = &quot;Bob&quot;, last_name = &quot;Brown&quot;)
+ (id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), first_name = &quot;Carol&quot;, last_name = &quot;Smith&quot;)
+
+julia&gt; tables.visit
+14-element Vector{@NamedTuple{id::UUID, person_id::UUID, index::Int64, date::Date}}:
+ (id = UUID(&quot;cea4339d-325a-41f8-9a5e-fd02323591ba&quot;), person_id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), index = 1, date = Date(&quot;1974-06-02&quot;))
+ (id = UUID(&quot;d54d21b0-59d0-4595-882f-c7bc0fc7bde4&quot;), person_id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), index = 2, date = Date(&quot;1982-08-04&quot;))
+ (id = UUID(&quot;77139cf8-6bdc-43a1-96dd-be3f8d850b30&quot;), person_id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), index = 3, date = Date(&quot;1985-01-10&quot;))
+ (id = UUID(&quot;c707dbd5-519a-4948-bdb2-57225970ef9a&quot;), person_id = UUID(&quot;34cdf816-7ac5-4e9d-8ef1-1957242d4496&quot;), index = 4, date = Date(&quot;1994-10-02&quot;))
+ (id = UUID(&quot;443b40e3-a6a2-40bc-8f66-71f5c22da685&quot;), person_id = UUID(&quot;1dbe6a94-f238-481c-8137-c5a06272c93f&quot;), index = 1, date = Date(&quot;1972-06-30&quot;))
+ (id = UUID(&quot;cae1ad18-40b5-4eec-91ec-52b65d8c346f&quot;), person_id = UUID(&quot;1dbe6a94-f238-481c-8137-c5a06272c93f&quot;), index = 2, date = Date(&quot;1989-04-23&quot;))
+ (id = UUID(&quot;11d23dc3-63c5-48d2-890d-2623d5a48261&quot;), person_id = UUID(&quot;1dbe6a94-f238-481c-8137-c5a06272c93f&quot;), index = 3, date = Date(&quot;1991-09-07&quot;))
+ (id = UUID(&quot;98a05704-62fa-4a30-b41b-95a765c963af&quot;), person_id = UUID(&quot;8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa&quot;), index = 1, date = Date(&quot;1973-09-05&quot;))
+ (id = UUID(&quot;d05f883e-68f7-46fc-a106-042f10749bf3&quot;), person_id = UUID(&quot;8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa&quot;), index = 2, date = Date(&quot;1998-12-11&quot;))
+ (id = UUID(&quot;fc6a14a5-49f3-4746-b22d-f451e1dc4507&quot;), person_id = UUID(&quot;8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa&quot;), index = 3, date = Date(&quot;1999-05-10&quot;))
+ (id = UUID(&quot;e9dc403e-443b-4b15-8894-fc399967b1e5&quot;), person_id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), index = 1, date = Date(&quot;1973-06-13&quot;))
+ (id = UUID(&quot;84cd20d4-8836-464f-a76c-52ec80b9c022&quot;), person_id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), index = 2, date = Date(&quot;1980-07-05&quot;))
+ (id = UUID(&quot;49ad303b-db4a-4000-9376-c11580e22d4a&quot;), person_id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), index = 3, date = Date(&quot;1981-02-15&quot;))
+ (id = UUID(&quot;6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11&quot;), person_id = UUID(&quot;4c372d3e-1b44-4818-84d7-1268a624d4aa&quot;), index = 4, date = Date(&quot;1998-03-24&quot;))
+
+julia&gt; tables.symptom
+27-element Vector{@NamedTuple{visit_id::UUID, symptom::String}}:
+ (visit_id = UUID(&quot;cea4339d-325a-41f8-9a5e-fd02323591ba&quot;), symptom = &quot;Fever&quot;)
+ (visit_id = UUID(&quot;cea4339d-325a-41f8-9a5e-fd02323591ba&quot;), symptom = &quot;Runny nose&quot;)
+ (visit_id = UUID(&quot;d54d21b0-59d0-4595-882f-c7bc0fc7bde4&quot;), symptom = &quot;Fatigue&quot;)
+ (visit_id = UUID(&quot;d54d21b0-59d0-4595-882f-c7bc0fc7bde4&quot;), symptom = &quot;Chills&quot;)
+ (visit_id = UUID(&quot;77139cf8-6bdc-43a1-96dd-be3f8d850b30&quot;), symptom = &quot;Muscle Loss&quot;)
+ (visit_id = UUID(&quot;77139cf8-6bdc-43a1-96dd-be3f8d850b30&quot;), symptom = &quot;Weakness&quot;)
+ (visit_id = UUID(&quot;c707dbd5-519a-4948-bdb2-57225970ef9a&quot;), symptom = &quot;Fainting&quot;)
+ (visit_id = UUID(&quot;c707dbd5-519a-4948-bdb2-57225970ef9a&quot;), symptom = &quot;Muscle Loss&quot;)
+ (visit_id = UUID(&quot;443b40e3-a6a2-40bc-8f66-71f5c22da685&quot;), symptom = &quot;Fatigue&quot;)
+ (visit_id = UUID(&quot;cae1ad18-40b5-4eec-91ec-52b65d8c346f&quot;), symptom = &quot;Fatigue&quot;)
+ (visit_id = UUID(&quot;cae1ad18-40b5-4eec-91ec-52b65d8c346f&quot;), symptom = &quot;Chills&quot;)
+ (visit_id = UUID(&quot;11d23dc3-63c5-48d2-890d-2623d5a48261&quot;), symptom = &quot;Muscle Loss&quot;)
+ (visit_id = UUID(&quot;11d23dc3-63c5-48d2-890d-2623d5a48261&quot;), symptom = &quot;Fainting&quot;)
+ (visit_id = UUID(&quot;98a05704-62fa-4a30-b41b-95a765c963af&quot;), symptom = &quot;Fever&quot;)
+ (visit_id = UUID(&quot;98a05704-62fa-4a30-b41b-95a765c963af&quot;), symptom = &quot;Fatigue&quot;)
+ (visit_id = UUID(&quot;d05f883e-68f7-46fc-a106-042f10749bf3&quot;), symptom = &quot;Runny nose&quot;)
+ (visit_id = UUID(&quot;d05f883e-68f7-46fc-a106-042f10749bf3&quot;), symptom = &quot;Fever&quot;)
+ (visit_id = UUID(&quot;fc6a14a5-49f3-4746-b22d-f451e1dc4507&quot;), symptom = &quot;Weakness&quot;)
+ (visit_id = UUID(&quot;fc6a14a5-49f3-4746-b22d-f451e1dc4507&quot;), symptom = &quot;Fainting&quot;)
+ (visit_id = UUID(&quot;e9dc403e-443b-4b15-8894-fc399967b1e5&quot;), symptom = &quot;Runny nose&quot;)
+ (visit_id = UUID(&quot;e9dc403e-443b-4b15-8894-fc399967b1e5&quot;), symptom = &quot;Runny nose&quot;)
+ (visit_id = UUID(&quot;84cd20d4-8836-464f-a76c-52ec80b9c022&quot;), symptom = &quot;Fever&quot;)
+ (visit_id = UUID(&quot;84cd20d4-8836-464f-a76c-52ec80b9c022&quot;), symptom = &quot;Cough&quot;)
+ (visit_id = UUID(&quot;49ad303b-db4a-4000-9376-c11580e22d4a&quot;), symptom = &quot;Weakness&quot;)
+ (visit_id = UUID(&quot;49ad303b-db4a-4000-9376-c11580e22d4a&quot;), symptom = &quot;Weakness&quot;)
+ (visit_id = UUID(&quot;6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11&quot;), symptom = &quot;Fainting&quot;)
+ (visit_id = UUID(&quot;6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11&quot;), symptom = &quot;Muscle Loss&quot;)</code></pre><p>Each of the tables created via <code>collect_tables</code> (or <code>generate_tables</code>) is compliant with the Tables.jl interface and, in Tables.jl parlance, is a &quot;row table,&quot; i.e. an iterable collection of rows with a common schema.</p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Tuesday 27 February 2024 21:15">Tuesday 27 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
