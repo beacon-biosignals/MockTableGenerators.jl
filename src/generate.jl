@@ -95,6 +95,10 @@ function _generate!(callback, rng::AbstractRNG, dag::Pair{<:TableGenerator,<:Any
     return _generate!(callback, rng, first(dag)=>[last(dag)], deps)
 end
 
+function _generate!(callback, rng::AbstractRNG, dag, deps)
+    return _generate!(callback, rng, collect(dag), deps)
+end
+
 function _generate!(callback, rng::AbstractRNG, dag::Pair{<:TableGenerator,<:AbstractVector}, deps)
     gen, nodes = dag
 

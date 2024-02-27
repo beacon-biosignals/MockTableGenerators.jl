@@ -47,7 +47,7 @@ using UUIDs: uuid4
                 DemoGenerator(1) => DemoGenerator(1) => [DemoGenerator(1)],
                 DemoGenerator(1) => [DemoGenerator(1) => DemoGenerator(1)],
                 DemoGenerator(1) => [DemoGenerator(1) => [DemoGenerator(1)]],
-                DemoGenerator(1) => (DemoGenerator(1) => DemoGenerator(1)),  # tuple
+                DemoGenerator(1) => (DemoGenerator(1) => DemoGenerator(1),),  # tuple
             )
 
             for dag in nested_dags
