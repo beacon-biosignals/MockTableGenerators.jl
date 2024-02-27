@@ -41,7 +41,7 @@ Each person will have a first name and last name and will be uniquely identified
 a UUID.
 
 ```julia
-using MockTableGenerators, Dates, UUIDs
+using MockTableGenerators, Dates, StableRNGs, UUIDs
 
 first_names = ["Alice", "Bob", "Carol", "David"]
 last_names = ["Smith", "Johnson", "Williams", "Brown"]
@@ -55,28 +55,36 @@ end
 MockTableGenerators.table_key(g::PersonGenerator) = :person
 
 # There will be a random number of rows within the bounds set by the generator type
-MockTableGenerators.num_rows(g::PersonGenerator) = rand(g.num)
+MockTableGenerators.num_rows(rng, g::PersonGenerator) = rand(rng, g.num)
 
 # Each row will have a `UUID` called `id` and a random pairing of first and last names
-function MockTableGenerators.emit!(g::PersonGenerator, deps)
-    return (; id=uuid4(), first_name=rand(first_names), last_name=rand(last_names))
+function MockTableGenerators.emit!(rng, g::PersonGenerator, deps)
+    return (; id=uuid4(rng),
+            first_name=rand(rng, first_names),
+            last_name=rand(rng, last_names))
 end
 ```
 
 With that setup, let's try generating just a table of exactly four people, ignoring
 visits and symptoms for now.
-To use the generator to generate tables, we'll simply pass it to `generate`.
+To use the generator to generate rows, we'll simply pass it to `generate`.
+In this example, we'll use a `StableRNG` from the StableRNGs.jl package to reproducibly
+generate the rows.
+Note that providing a random number generator when calling `generate` is optional, but
+new methods like those shown above must allow one to be passed as the first argument.
 
 ```julia-repl
-julia> MockTableGenerators.generate(PersonGenerator(4:4))
+julia> rng = StableRNG(11);
+
+julia> MockTableGenerators.generate(rng, PersonGenerator(4:4))
 Channel{Any}(10) (closed)
 
 julia> collect(ans)
 4-element Vector{Any}:
- :person => (id = UUID("16834dca-ae91-4781-a930-6323d2a57b03"), first_name = "Carol", last_name = "Brown")
- :person => (id = UUID("71e93c3e-561c-4bc7-896f-a0b1672ef743"), first_name = "Carol", last_name = "Smith")
- :person => (id = UUID("70d68ba0-a82a-4ccb-9967-09b2da69b3af"), first_name = "David", last_name = "Brown")
- :person => (id = UUID("b3090234-3d62-4bdd-b976-a93bb8d129b4"), first_name = "Bob", last_name = "Johnson")
+ :person => (id = UUID("5a3d3d5e-ff13-417a-8b79-7c9e0c9cfb56"), first_name = "David", last_name = "Brown")
+ :person => (id = UUID("9231b8a2-2320-4ef4-a1ed-0719b3373395"), first_name = "Bob", last_name = "Williams")
+ :person => (id = UUID("80f3c3fb-afb7-44de-889d-0b95221178c2"), first_name = "Bob", last_name = "Brown")
+ :person => (id = UUID("19829759-e683-4d01-8481-cba1b28467d7"), first_name = "Alice", last_name = "Brown")
 ```
 
 The output of `generate` is a `Channel` that iterates `table_key => row` pairs.
@@ -88,19 +96,19 @@ struct VisitGenerator <: TableGenerator
     num::UnitRange{Int}
 end
 
-function MockTableGenerators.visit!(g::VisitGenerator, deps)
-    n = rand(g.num)
-    visits = sort!(rand(Date(1970):Day(1):Date(2000), n))
+function MockTableGenerators.visit!(rng, g::VisitGenerator, deps)
+    n = rand(rng, g.num)
+    visits = sort!(rand(rng, Date(1970):Day(1):Date(2000), n))
     return Dict(:i => 1, :visits => visits, :n => n)
 end
 
 MockTableGenerators.table_key(g::VisitGenerator) = :visit
 
-MockTableGenerators.num_rows(g::VisitGenerator, state) = state[:n]
+MockTableGenerators.num_rows(rng, g::VisitGenerator, state) = state[:n]
 
-function MockTableGenerators.emit!(g::VisitGenerator, deps, state)
+function MockTableGenerators.emit!(rng, g::VisitGenerator, deps, state)
     visit = popfirst!(state[:visits])
-    row = (; id=uuid4(), person_id=deps[:person].id, index=state[:i], date=visit)
+    row = (; id=uuid4(rng), person_id=deps[:person].id, index=state[:i], date=visit)
     state[:i] += 1
     return row
 end
@@ -116,19 +124,19 @@ struct SymptomGenerator <: TableGenerator
     num::UnitRange{Int}
 end
 
-function MockTableGenerators.visit!(g::SymptomGenerator, deps)
+function MockTableGenerators.visit!(rng, g::SymptomGenerator, deps)
     # Number of symptoms increase, on average, with number of visits
-    n = rand(min(deps[:visit].index, last(g.num)):last(g.num))
+    n = rand(rng, min(deps[:visit].index, last(g.num)):last(g.num))
     return (; n)
 end
 
 MockTableGenerators.table_key(g::SymptomGenerator) = :symptom
-MockTableGenerators.num_rows(g::SymptomGenerator, state) = state.n
+MockTableGenerators.num_rows(rng, g::SymptomGenerator, state) = state.n
 
-function MockTableGenerators.emit!(g::SymptomGenerator, deps, state)
+function MockTableGenerators.emit!(rng, g::SymptomGenerator, deps, state)
     # Conditional generation based upon number of visits
     symptoms = deps[:visit].index > 2 ? severe_symptoms : light_symptoms
-    return (; visit_id=deps[:visit].id, symptom=rand(symptoms))
+    return (; visit_id=deps[:visit].id, symptom=rand(rng, symptoms))
 end
 ```
 
@@ -140,98 +148,117 @@ symptoms.
 julia> dag = [PersonGenerator(3:5) => [VisitGenerator(1:4) => [SymptomGenerator(1:2)]]];
 
 julia> results = collect(MockTableGenerators.generate(dag))
-29-element Vector{Any}:
-  :person => (id = UUID("f243cfbd-7ba0-4d65-aac3-60d02d8395d6"), first_name = "Bob", last_name = "Brown")
-   :visit => (id = UUID("9760d38f-0749-40f4-973d-b8818f317ed2"), person_id = UUID("f243cfbd-7ba0-4d65-aac3-60d02d8395d6"), index = 1, date = Date("1972-07-17"))
- :symptom => (visit_id = UUID("9760d38f-0749-40f4-973d-b8818f317ed2"), symptom = "Runny nose")
-   :visit => (id = UUID("4855b672-64be-468b-b3a1-dd7a595c180b"), person_id = UUID("f243cfbd-7ba0-4d65-aac3-60d02d8395d6"), index = 2, date = Date("1982-10-29"))
- :symptom => (visit_id = UUID("4855b672-64be-468b-b3a1-dd7a595c180b"), symptom = "Cough")
- :symptom => (visit_id = UUID("4855b672-64be-468b-b3a1-dd7a595c180b"), symptom = "Runny nose")
-   :visit => (id = UUID("a3be2559-9670-438c-ae30-a7c1f4698baa"), person_id = UUID("f243cfbd-7ba0-4d65-aac3-60d02d8395d6"), index = 3, date = Date("1983-12-30"))
- :symptom => (visit_id = UUID("a3be2559-9670-438c-ae30-a7c1f4698baa"), symptom = "Muscle Loss")
- :symptom => (visit_id = UUID("a3be2559-9670-438c-ae30-a7c1f4698baa"), symptom = "Muscle Loss")
-   :visit => (id = UUID("1b20aa89-22c8-4c71-84c4-5a95267fb5ba"), person_id = UUID("f243cfbd-7ba0-4d65-aac3-60d02d8395d6"), index = 4, date = Date("1995-04-30"))
- :symptom => (visit_id = UUID("1b20aa89-22c8-4c71-84c4-5a95267fb5ba"), symptom = "Muscle Loss")
- :symptom => (visit_id = UUID("1b20aa89-22c8-4c71-84c4-5a95267fb5ba"), symptom = "Fainting")
-  :person => (id = UUID("109b935e-70fd-42b9-a623-aeefc3557b6e"), first_name = "Alice", last_name = "Williams")
-   :visit => (id = UUID("7366ea7e-f6f5-41c9-8c48-4e0b060cd7af"), person_id = UUID("109b935e-70fd-42b9-a623-aeefc3557b6e"), index = 1, date = Date("1972-02-10"))
- :symptom => (visit_id = UUID("7366ea7e-f6f5-41c9-8c48-4e0b060cd7af"), symptom = "Fever")
- :symptom => (visit_id = UUID("7366ea7e-f6f5-41c9-8c48-4e0b060cd7af"), symptom = "Fever")
-   :visit => (id = UUID("41f0d3df-1ad7-4906-8995-49e4387631d5"), person_id = UUID("109b935e-70fd-42b9-a623-aeefc3557b6e"), index = 2, date = Date("1982-04-07"))
- :symptom => (visit_id = UUID("41f0d3df-1ad7-4906-8995-49e4387631d5"), symptom = "Runny nose")
- :symptom => (visit_id = UUID("41f0d3df-1ad7-4906-8995-49e4387631d5"), symptom = "Chills")
-  :person => (id = UUID("598c059f-4138-41f5-8350-6c47cc4351aa"), first_name = "Bob", last_name = "Johnson")
-   :visit => (id = UUID("033dd1c4-8700-4d27-91e9-05e2d2aa541e"), person_id = UUID("598c059f-4138-41f5-8350-6c47cc4351aa"), index = 1, date = Date("1983-06-09"))
- :symptom => (visit_id = UUID("033dd1c4-8700-4d27-91e9-05e2d2aa541e"), symptom = "Chills")
-   :visit => (id = UUID("69b6b83c-1825-49c6-ae26-c902dc01f121"), person_id = UUID("598c059f-4138-41f5-8350-6c47cc4351aa"), index = 2, date = Date("1986-09-30"))
- :symptom => (visit_id = UUID("69b6b83c-1825-49c6-ae26-c902dc01f121"), symptom = "Chills")
- :symptom => (visit_id = UUID("69b6b83c-1825-49c6-ae26-c902dc01f121"), symptom = "Fever")
-  :person => (id = UUID("3f79f2fa-5830-41b1-8a8f-47b2d76b21bb"), first_name = "Carol", last_name = "Smith")
-   :visit => (id = UUID("5198d75c-8e1c-4d93-8ae9-ab976c4484ff"), person_id = UUID("3f79f2fa-5830-41b1-8a8f-47b2d76b21bb"), index = 1, date = Date("1977-07-21"))
- :symptom => (visit_id = UUID("5198d75c-8e1c-4d93-8ae9-ab976c4484ff"), symptom = "Fatigue")
- :symptom => (visit_id = UUID("5198d75c-8e1c-4d93-8ae9-ab976c4484ff"), symptom = "Fatigue")
+45-element Vector{Any}:
+  :person => (id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), first_name = "Bob", last_name = "Williams")
+   :visit => (id = UUID("cea4339d-325a-41f8-9a5e-fd02323591ba"), person_id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), index = 1, date = Date("1974-06-02"))
+ :symptom => (visit_id = UUID("cea4339d-325a-41f8-9a5e-fd02323591ba"), symptom = "Fever")
+ :symptom => (visit_id = UUID("cea4339d-325a-41f8-9a5e-fd02323591ba"), symptom = "Runny nose")
+   :visit => (id = UUID("d54d21b0-59d0-4595-882f-c7bc0fc7bde4"), person_id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), index = 2, date = Date("1982-08-04"))
+ :symptom => (visit_id = UUID("d54d21b0-59d0-4595-882f-c7bc0fc7bde4"), symptom = "Fatigue")
+ :symptom => (visit_id = UUID("d54d21b0-59d0-4595-882f-c7bc0fc7bde4"), symptom = "Chills")
+   :visit => (id = UUID("77139cf8-6bdc-43a1-96dd-be3f8d850b30"), person_id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), index = 3, date = Date("1985-01-10"))
+ :symptom => (visit_id = UUID("77139cf8-6bdc-43a1-96dd-be3f8d850b30"), symptom = "Muscle Loss")
+ :symptom => (visit_id = UUID("77139cf8-6bdc-43a1-96dd-be3f8d850b30"), symptom = "Weakness")
+   :visit => (id = UUID("c707dbd5-519a-4948-bdb2-57225970ef9a"), person_id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), index = 4, date = Date("1994-10-02"))
+ :symptom => (visit_id = UUID("c707dbd5-519a-4948-bdb2-57225970ef9a"), symptom = "Fainting")
+ :symptom => (visit_id = UUID("c707dbd5-519a-4948-bdb2-57225970ef9a"), symptom = "Muscle Loss")
+  :person => (id = UUID("1dbe6a94-f238-481c-8137-c5a06272c93f"), first_name = "Bob", last_name = "Brown")
+   :visit => (id = UUID("443b40e3-a6a2-40bc-8f66-71f5c22da685"), person_id = UUID("1dbe6a94-f238-481c-8137-c5a06272c93f"), index = 1, date = Date("1972-06-30"))
+ :symptom => (visit_id = UUID("443b40e3-a6a2-40bc-8f66-71f5c22da685"), symptom = "Fatigue")
+   :visit => (id = UUID("cae1ad18-40b5-4eec-91ec-52b65d8c346f"), person_id = UUID("1dbe6a94-f238-481c-8137-c5a06272c93f"), index = 2, date = Date("1989-04-23"))
+ :symptom => (visit_id = UUID("cae1ad18-40b5-4eec-91ec-52b65d8c346f"), symptom = "Fatigue")
+ :symptom => (visit_id = UUID("cae1ad18-40b5-4eec-91ec-52b65d8c346f"), symptom = "Chills")
+   :visit => (id = UUID("11d23dc3-63c5-48d2-890d-2623d5a48261"), person_id = UUID("1dbe6a94-f238-481c-8137-c5a06272c93f"), index = 3, date = Date("1991-09-07"))
+ :symptom => (visit_id = UUID("11d23dc3-63c5-48d2-890d-2623d5a48261"), symptom = "Muscle Loss")
+ :symptom => (visit_id = UUID("11d23dc3-63c5-48d2-890d-2623d5a48261"), symptom = "Fainting")
+  :person => (id = UUID("8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa"), first_name = "Bob", last_name = "Brown")
+   :visit => (id = UUID("98a05704-62fa-4a30-b41b-95a765c963af"), person_id = UUID("8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa"), index = 1, date = Date("1973-09-05"))
+ :symptom => (visit_id = UUID("98a05704-62fa-4a30-b41b-95a765c963af"), symptom = "Fever")
+ :symptom => (visit_id = UUID("98a05704-62fa-4a30-b41b-95a765c963af"), symptom = "Fatigue")
+   :visit => (id = UUID("d05f883e-68f7-46fc-a106-042f10749bf3"), person_id = UUID("8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa"), index = 2, date = Date("1998-12-11"))
+ :symptom => (visit_id = UUID("d05f883e-68f7-46fc-a106-042f10749bf3"), symptom = "Runny nose")
+ :symptom => (visit_id = UUID("d05f883e-68f7-46fc-a106-042f10749bf3"), symptom = "Fever")
+   :visit => (id = UUID("fc6a14a5-49f3-4746-b22d-f451e1dc4507"), person_id = UUID("8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa"), index = 3, date = Date("1999-05-10"))
+ :symptom => (visit_id = UUID("fc6a14a5-49f3-4746-b22d-f451e1dc4507"), symptom = "Weakness")
+ :symptom => (visit_id = UUID("fc6a14a5-49f3-4746-b22d-f451e1dc4507"), symptom = "Fainting")
+  :person => (id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), first_name = "Carol", last_name = "Smith")
+   :visit => (id = UUID("e9dc403e-443b-4b15-8894-fc399967b1e5"), person_id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), index = 1, date = Date("1973-06-13"))
+ :symptom => (visit_id = UUID("e9dc403e-443b-4b15-8894-fc399967b1e5"), symptom = "Runny nose")
+ :symptom => (visit_id = UUID("e9dc403e-443b-4b15-8894-fc399967b1e5"), symptom = "Runny nose")
+   :visit => (id = UUID("84cd20d4-8836-464f-a76c-52ec80b9c022"), person_id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), index = 2, date = Date("1980-07-05"))
+ :symptom => (visit_id = UUID("84cd20d4-8836-464f-a76c-52ec80b9c022"), symptom = "Fever")
+ :symptom => (visit_id = UUID("84cd20d4-8836-464f-a76c-52ec80b9c022"), symptom = "Cough")
+   :visit => (id = UUID("49ad303b-db4a-4000-9376-c11580e22d4a"), person_id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), index = 3, date = Date("1981-02-15"))
+ :symptom => (visit_id = UUID("49ad303b-db4a-4000-9376-c11580e22d4a"), symptom = "Weakness")
+ :symptom => (visit_id = UUID("49ad303b-db4a-4000-9376-c11580e22d4a"), symptom = "Weakness")
+   :visit => (id = UUID("6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11"), person_id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), index = 4, date = Date("1998-03-24"))
+ :symptom => (visit_id = UUID("6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11"), symptom = "Fainting")
+ :symptom => (visit_id = UUID("6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11"), symptom = "Muscle Loss")
 ```
 
-We can also separate these into individual tables.
-One, but not the only, way to do this is as follows.
+We can also separate these into individual tables. This can be done after generating rows
+by calling `collect_tables`, or tables can be generated directly using `generate_tables` in
+place of `generate`. The following example shows the former to organize the rows generated
+above.
 
 ```julia-repl
-julia> using DataFrames, OrderedCollections
+julia> tables = MockTableGenerators.collect_tables(results);
 
-julia> tables = OrderedDict{Symbol,DataFrame}();
+julia> tables.person
+4-element Vector{@NamedTuple{id::UUID, first_name::String, last_name::String}}:
+ (id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), first_name = "Bob", last_name = "Williams")
+ (id = UUID("1dbe6a94-f238-481c-8137-c5a06272c93f"), first_name = "Bob", last_name = "Brown")
+ (id = UUID("8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa"), first_name = "Bob", last_name = "Brown")
+ (id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), first_name = "Carol", last_name = "Smith")
 
-julia> for (name, row) in results
-           push!(get!(tables, name, DataFrame()), row)
-       end
+julia> tables.visit
+14-element Vector{@NamedTuple{id::UUID, person_id::UUID, index::Int64, date::Date}}:
+ (id = UUID("cea4339d-325a-41f8-9a5e-fd02323591ba"), person_id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), index = 1, date = Date("1974-06-02"))
+ (id = UUID("d54d21b0-59d0-4595-882f-c7bc0fc7bde4"), person_id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), index = 2, date = Date("1982-08-04"))
+ (id = UUID("77139cf8-6bdc-43a1-96dd-be3f8d850b30"), person_id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), index = 3, date = Date("1985-01-10"))
+ (id = UUID("c707dbd5-519a-4948-bdb2-57225970ef9a"), person_id = UUID("34cdf816-7ac5-4e9d-8ef1-1957242d4496"), index = 4, date = Date("1994-10-02"))
+ (id = UUID("443b40e3-a6a2-40bc-8f66-71f5c22da685"), person_id = UUID("1dbe6a94-f238-481c-8137-c5a06272c93f"), index = 1, date = Date("1972-06-30"))
+ (id = UUID("cae1ad18-40b5-4eec-91ec-52b65d8c346f"), person_id = UUID("1dbe6a94-f238-481c-8137-c5a06272c93f"), index = 2, date = Date("1989-04-23"))
+ (id = UUID("11d23dc3-63c5-48d2-890d-2623d5a48261"), person_id = UUID("1dbe6a94-f238-481c-8137-c5a06272c93f"), index = 3, date = Date("1991-09-07"))
+ (id = UUID("98a05704-62fa-4a30-b41b-95a765c963af"), person_id = UUID("8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa"), index = 1, date = Date("1973-09-05"))
+ (id = UUID("d05f883e-68f7-46fc-a106-042f10749bf3"), person_id = UUID("8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa"), index = 2, date = Date("1998-12-11"))
+ (id = UUID("fc6a14a5-49f3-4746-b22d-f451e1dc4507"), person_id = UUID("8bdfb2a4-d99b-4a77-85e4-1e1ce3461aaa"), index = 3, date = Date("1999-05-10"))
+ (id = UUID("e9dc403e-443b-4b15-8894-fc399967b1e5"), person_id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), index = 1, date = Date("1973-06-13"))
+ (id = UUID("84cd20d4-8836-464f-a76c-52ec80b9c022"), person_id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), index = 2, date = Date("1980-07-05"))
+ (id = UUID("49ad303b-db4a-4000-9376-c11580e22d4a"), person_id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), index = 3, date = Date("1981-02-15"))
+ (id = UUID("6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11"), person_id = UUID("4c372d3e-1b44-4818-84d7-1268a624d4aa"), index = 4, date = Date("1998-03-24"))
 
-julia> tables[:person]
-4×3 DataFrame
- Row │ id                                 first_name  last_name
-     │ UUID                               String      String
-─────┼──────────────────────────────────────────────────────────
-   1 │ f243cfbd-7ba0-4d65-aac3-60d02d83…  Bob         Brown
-   2 │ 109b935e-70fd-42b9-a623-aeefc355…  Alice       Williams
-   3 │ 598c059f-4138-41f5-8350-6c47cc43…  Bob         Johnson
-   4 │ 3f79f2fa-5830-41b1-8a8f-47b2d76b…  Carol       Smith
-
-julia> tables[:visit]
-9×4 DataFrame
- Row │ id                                 person_id                          index  date
-     │ UUID                               UUID                               Int64  Date
-─────┼─────────────────────────────────────────────────────────────────────────────────────────
-   1 │ 9760d38f-0749-40f4-973d-b8818f31…  f243cfbd-7ba0-4d65-aac3-60d02d83…      1  1972-07-17
-   2 │ 4855b672-64be-468b-b3a1-dd7a595c…  f243cfbd-7ba0-4d65-aac3-60d02d83…      2  1982-10-29
-   3 │ a3be2559-9670-438c-ae30-a7c1f469…  f243cfbd-7ba0-4d65-aac3-60d02d83…      3  1983-12-30
-   4 │ 1b20aa89-22c8-4c71-84c4-5a95267f…  f243cfbd-7ba0-4d65-aac3-60d02d83…      4  1995-04-30
-   5 │ 7366ea7e-f6f5-41c9-8c48-4e0b060c…  109b935e-70fd-42b9-a623-aeefc355…      1  1972-02-10
-   6 │ 41f0d3df-1ad7-4906-8995-49e43876…  109b935e-70fd-42b9-a623-aeefc355…      2  1982-04-07
-   7 │ 033dd1c4-8700-4d27-91e9-05e2d2aa…  598c059f-4138-41f5-8350-6c47cc43…      1  1983-06-09
-   8 │ 69b6b83c-1825-49c6-ae26-c902dc01…  598c059f-4138-41f5-8350-6c47cc43…      2  1986-09-30
-   9 │ 5198d75c-8e1c-4d93-8ae9-ab976c44…  3f79f2fa-5830-41b1-8a8f-47b2d76b…      1  1977-07-21
-
-julia> tables[:visit]
-16×2 DataFrame
- Row │ visit_id                           symptom
-     │ UUID                               String
-─────┼────────────────────────────────────────────────
-   1 │ 9760d38f-0749-40f4-973d-b8818f31…  Runny nose
-   2 │ 4855b672-64be-468b-b3a1-dd7a595c…  Cough
-   3 │ 4855b672-64be-468b-b3a1-dd7a595c…  Runny nose
-   4 │ a3be2559-9670-438c-ae30-a7c1f469…  Muscle Loss
-   5 │ a3be2559-9670-438c-ae30-a7c1f469…  Muscle Loss
-   6 │ 1b20aa89-22c8-4c71-84c4-5a95267f…  Muscle Loss
-   7 │ 1b20aa89-22c8-4c71-84c4-5a95267f…  Fainting
-   8 │ 7366ea7e-f6f5-41c9-8c48-4e0b060c…  Fever
-   9 │ 7366ea7e-f6f5-41c9-8c48-4e0b060c…  Fever
-  10 │ 41f0d3df-1ad7-4906-8995-49e43876…  Runny nose
-  11 │ 41f0d3df-1ad7-4906-8995-49e43876…  Chills
-  12 │ 033dd1c4-8700-4d27-91e9-05e2d2aa…  Chills
-  13 │ 69b6b83c-1825-49c6-ae26-c902dc01…  Chills
-  14 │ 69b6b83c-1825-49c6-ae26-c902dc01…  Fever
-  15 │ 5198d75c-8e1c-4d93-8ae9-ab976c44…  Fatigue
-  16 │ 5198d75c-8e1c-4d93-8ae9-ab976c44…  Fatigue
+julia> tables.symptom
+27-element Vector{@NamedTuple{visit_id::UUID, symptom::String}}:
+ (visit_id = UUID("cea4339d-325a-41f8-9a5e-fd02323591ba"), symptom = "Fever")
+ (visit_id = UUID("cea4339d-325a-41f8-9a5e-fd02323591ba"), symptom = "Runny nose")
+ (visit_id = UUID("d54d21b0-59d0-4595-882f-c7bc0fc7bde4"), symptom = "Fatigue")
+ (visit_id = UUID("d54d21b0-59d0-4595-882f-c7bc0fc7bde4"), symptom = "Chills")
+ (visit_id = UUID("77139cf8-6bdc-43a1-96dd-be3f8d850b30"), symptom = "Muscle Loss")
+ (visit_id = UUID("77139cf8-6bdc-43a1-96dd-be3f8d850b30"), symptom = "Weakness")
+ (visit_id = UUID("c707dbd5-519a-4948-bdb2-57225970ef9a"), symptom = "Fainting")
+ (visit_id = UUID("c707dbd5-519a-4948-bdb2-57225970ef9a"), symptom = "Muscle Loss")
+ (visit_id = UUID("443b40e3-a6a2-40bc-8f66-71f5c22da685"), symptom = "Fatigue")
+ (visit_id = UUID("cae1ad18-40b5-4eec-91ec-52b65d8c346f"), symptom = "Fatigue")
+ (visit_id = UUID("cae1ad18-40b5-4eec-91ec-52b65d8c346f"), symptom = "Chills")
+ (visit_id = UUID("11d23dc3-63c5-48d2-890d-2623d5a48261"), symptom = "Muscle Loss")
+ (visit_id = UUID("11d23dc3-63c5-48d2-890d-2623d5a48261"), symptom = "Fainting")
+ (visit_id = UUID("98a05704-62fa-4a30-b41b-95a765c963af"), symptom = "Fever")
+ (visit_id = UUID("98a05704-62fa-4a30-b41b-95a765c963af"), symptom = "Fatigue")
+ (visit_id = UUID("d05f883e-68f7-46fc-a106-042f10749bf3"), symptom = "Runny nose")
+ (visit_id = UUID("d05f883e-68f7-46fc-a106-042f10749bf3"), symptom = "Fever")
+ (visit_id = UUID("fc6a14a5-49f3-4746-b22d-f451e1dc4507"), symptom = "Weakness")
+ (visit_id = UUID("fc6a14a5-49f3-4746-b22d-f451e1dc4507"), symptom = "Fainting")
+ (visit_id = UUID("e9dc403e-443b-4b15-8894-fc399967b1e5"), symptom = "Runny nose")
+ (visit_id = UUID("e9dc403e-443b-4b15-8894-fc399967b1e5"), symptom = "Runny nose")
+ (visit_id = UUID("84cd20d4-8836-464f-a76c-52ec80b9c022"), symptom = "Fever")
+ (visit_id = UUID("84cd20d4-8836-464f-a76c-52ec80b9c022"), symptom = "Cough")
+ (visit_id = UUID("49ad303b-db4a-4000-9376-c11580e22d4a"), symptom = "Weakness")
+ (visit_id = UUID("49ad303b-db4a-4000-9376-c11580e22d4a"), symptom = "Weakness")
+ (visit_id = UUID("6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11"), symptom = "Fainting")
+ (visit_id = UUID("6e3a09c8-8cbd-4dd5-82ef-ba1d54c43e11"), symptom = "Muscle Loss")
 ```
 
-Here we use an `OrderedDict` to preserve insertion order. This ensures that tables which are used downstream in the DAG
-show up earlier in the dictionary. This allows uploading the tables into e.g. databases which make foreign key checks
-smoother, since one simply needs to upload in the order the resulting `OrderedDict` uses.
+Each of the tables created via `collect_tables` (or `generate_tables`) is compliant with
+the Tables.jl interface and, in Tables.jl parlance, is a "row table," i.e. an iterable
+collection of rows with a common schema.
