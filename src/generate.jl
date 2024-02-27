@@ -84,7 +84,7 @@ function generate(callback, rng::AbstractRNG, dag)
     return _generate!(callback, rng, dag, Dict())
 end
 
-function _generate!(callback, rng::AbstractRNG, dag::AbstractVector, deps)
+function _generate!(callback, rng::AbstractRNG, dag, deps)
     for node in dag
         _generate!(callback, rng, node, deps)
     end
@@ -93,10 +93,6 @@ end
 
 function _generate!(callback, rng::AbstractRNG, dag::Pair{<:TableGenerator,<:Any}, deps)
     return _generate!(callback, rng, first(dag)=>[last(dag)], deps)
-end
-
-function _generate!(callback, rng::AbstractRNG, dag, deps)
-    return _generate!(callback, rng, collect(dag), deps)
 end
 
 function _generate!(callback, rng::AbstractRNG, dag::Pair{<:TableGenerator,<:AbstractVector}, deps)
