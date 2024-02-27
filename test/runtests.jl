@@ -143,6 +143,44 @@ using UUIDs: uuid4
             end
             @test tables == generate_tables(StableRNG(1), dag)
         end
+
+        @testset "error propagation" begin
+            struct ErrGen <: TableGenerator
+                num::Int
+            end
+
+            MockTableGenerators.table_key(g::ErrGen) = :gen
+            MockTableGenerators.num_rows(rng, g::ErrGen, state) = g.num
+            MockTableGenerators.visit!(rng, g::ErrGen, deps::Dict) = Dict(:i => 1)
+            function MockTableGenerators.emit!(rng, g::ErrGen, deps::Dict, state::Dict)
+                # will throw on `num`th emission
+                state[:i] >= g.num && error()
+                i = state[:i]
+                state[:i] += 1
+                return i
+            end
+
+            g = ErrGen(3)
+
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(g))
+            c = MockTableGenerators.generate(g; buffer=0)
+            # race condition
+            timedwait(() -> !isopen(c), 10)
+            @test_throws TaskFailedException collect(c)
+
+            c = MockTableGenerators.generate(g; buffer=1)
+            # race condition
+            timedwait(() -> !isopen(c), 10)
+            @test_throws TaskFailedException collect(c)
+
+            # no error thrown here because of buffer >= n put on channel
+            c = MockTableGenerators.generate(g; buffer=2)
+            # race condition
+            timedwait(() -> !isopen(c), 10)
+            @test collect(c) == Any[:gen => 1, :gen => 2]
+
+            @test_throws TaskFailedException collect(MockTableGenerators.generate(g; buffer=2))
+        end
     end
 
     @testset "range" begin
