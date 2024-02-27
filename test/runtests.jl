@@ -1,7 +1,9 @@
 using Aqua
 using Dates: Hour
-using MockTableGenerators: MockTableGenerators, TableGenerator, range
+using MockTableGenerators: MockTableGenerators, TableGenerator, collect_tables,
+                           generate_tables, range
 using StableRNGs
+using Tables
 using Test
 using UUIDs: uuid4
 
@@ -131,6 +133,15 @@ using UUIDs: uuid4
             # An `:alpha` row is created for each `:letter` row using the letter 'α' only
             @test count(==(:letter), table_names) > 2
             @test count(==(:alpha), table_names) == 2
+
+            table_row_pairs = MockTableGenerators.generate(StableRNG(1), dag)
+            tables = collect_tables(table_row_pairs)
+            @test collect(keys(tables)) == unique(table_names)
+            for (name, table) in pairs(tables)
+                @test Tables.isrowtable(table)
+                @test length(table) == count(==(name), table_names)
+            end
+            @test tables == generate_tables(StableRNG(1), dag)
         end
     end
 

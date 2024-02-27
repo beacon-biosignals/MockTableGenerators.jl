@@ -110,3 +110,31 @@ function _generate!(callback, rng::AbstractRNG, gen::TableGenerator, deps)
     end
     return nothing
 end
+
+"""
+    collect_tables(name_row_pairs) -> NamedTuple
+
+Given an iterator over `table_name => table_row` pairs, e.g. the output of
+[`generate`](@ref), collect the rows corresponding to each distinct table name
+and return a `NamedTuple` pairing the names with Tables.jl-compliant tables
+containing the rows.
+"""
+function collect_tables(name_row_pairs)
+    tables = NamedTuple()
+    for (name, row) in name_row_pairs
+        if haskey(tables, name)
+            push!(tables[name], row)
+        else
+            tables = merge(tables, (; name => [row]))
+        end
+    end
+    return tables
+end
+
+"""
+    generate_tables(args...; kwargs...) -> NamedTuple
+
+Return [`collect_tables`](@ref) applied to the output of [`generate`](@ref) called
+with the given arguments and keyword arguments.
+"""
+generate_tables(args...; kwargs...) = collect_tables(generate(args...; kwargs...))
