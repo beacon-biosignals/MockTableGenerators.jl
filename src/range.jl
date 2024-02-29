@@ -1,7 +1,17 @@
 """
     range(x) -> AbstractRange
 
-Construct a range from a scalar or a range.
+Constructs a single-element range from a scalar, or returns the given range.
+
+# Examples
+julia> MockTableGenerators.range(3)
+3:3
+
+julia> MockTableGenerators.range(Minute(3))
+Minute(3):Minute(1):Minute(3)
+
+julia> MockTableGenerators.range(1:10)
+1:10
 """
 function range end
 
