@@ -1,7 +1,7 @@
 name = "MockTableGenerators"
 uuid = "63c704a1-a924-4685-a9dd-2c8225e4c0d3"
 authors = ["Beacon Biosignals Inc."]
-version = "0.2.1"
+version = "0.2.2"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
