@@ -51,7 +51,7 @@ MockTableGenerators.num_rows(rng, g::VisitGenerator, state) = state[:n]
 function MockTableGenerators.emit!(rng, g::VisitGenerator, deps, state)
     visit = popfirst!(state[:visits])
 
-    row = (; id=uuid4(), person_id=deps[:person].id, index=state[:i], date=visit)
+    row = (; id=uuid4(rng), person_id=deps[:person].id, index=state[:i], date=visit)
 
     state[:i] += 1
     return row
@@ -82,5 +82,11 @@ end
 
 const DAG = [PersonGenerator(3:5) => [VisitGenerator(1:4) => [SymptomGenerator(1:2)]]]
 # pass RNG for reproducible generation:
-collect(MockTableGenerators.generate(StableRNG(11), DAG))
+results = collect(MockTableGenerators.generate(StableRNG(11), DAG))
+
+# Alternatively, since v0.2.1, linear DAGs can be also constructed in a flat representation:
+const FLAT_DAG = PersonGenerator(3:5) => VisitGenerator(1:4) => SymptomGenerator(1:2)
+flat_results = collect(MockTableGenerators.generate(StableRNG(11), FLAT_DAG))
+
+@assert results == flat_results
 ```

@@ -57,7 +57,7 @@ emit!(rng, g::TableGenerator, deps, state::Nothing) = emit!(rng, g, deps)
 
 
 """
-    generate([rng::AbstractRNG=GLOBAL_RNG], dag; size::Integer=10) -> Channel{Any}
+    generate([rng::AbstractRNG=GLOBAL_RNG], dag; size::Integer=10) -> Channel{Pair{Symbol, <:Any}}
 
 Traverses the `dag` and generates the records specified by the [`TableGenerator`](@ref)
 of each node. Returns a `Channel` of size `size` comprising `table_key => record` pairs.
@@ -65,7 +65,7 @@ of each node. Returns a `Channel` of size `size` comprising `table_key => record
 generate(dag; kwargs...) = generate(GLOBAL_RNG, dag; kwargs...)
 
 function generate(rng::AbstractRNG, dag; size::Integer=10)
-    channel = Channel(size) do ch
+    channel = Channel{Pair{Symbol,<:Any}}(size) do ch
         return generate(rng, dag) do table, row
             return put!(ch, table => row)
         end
@@ -78,13 +78,13 @@ end
     generate(callback, rng::AbstractRNG, dag) -> Nothing
 
 Traverses the `dag` and generates the records specified by the [`TableGenerator`](@ref)
-of each node, and then exectues `callback(table_key, record)` on each one.
+of each node, and then executes `callback(table_key, record)` on each one.
 """
 function generate(callback, rng::AbstractRNG, dag)
     return _generate!(callback, rng, dag, Dict())
 end
 
-function _generate!(callback, rng::AbstractRNG, dag::AbstractVector, deps)
+function _generate!(callback, rng::AbstractRNG, dag, deps)
     for node in dag
         _generate!(callback, rng, node, deps)
     end
@@ -92,6 +92,10 @@ function _generate!(callback, rng::AbstractRNG, dag::AbstractVector, deps)
 end
 
 function _generate!(callback, rng::AbstractRNG, dag::Pair{<:TableGenerator,<:Any}, deps)
+    return _generate!(callback, rng, first(dag)=>[last(dag)], deps)
+end
+
+function _generate!(callback, rng::AbstractRNG, dag::Pair{<:TableGenerator,<:AbstractVector}, deps)
     gen, nodes = dag
 
     state = visit!(rng, gen, deps)
